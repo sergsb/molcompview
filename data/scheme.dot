@@ -1,0 +1,31 @@
+digraph MolCompassViewerDecisionTree {
+    rankdir=TB;
+    
+    // General styles
+    node [shape=box, style="rounded,filled", fontname="Arial"];
+    edge [color=gray50, fontname="Arial", fontsize=12];
+    
+    // Nodes with specific styles
+    Start [label="CSV Input", color="#FFDDC1"];
+    SmilesOnly [label="Only SMILES column?", color="#CDE7D8"];
+    BothGTandProbs [label="Both Ground Truth and Probabilities columns?", color="#CDE7D8"];
+    OtherColumns [label="Other categorical or numerical columns?", color="#CDE7D8"];
+    StructureOnly [label="STRUCTURE ONLY Mode", color="#FFC3A0"];
+    NormalMode [label="NORMAL Mode", color="#FFC3A0"];
+    AlternativeMode [label="ALTERNATIVE Mode", color="#FFC3A0"];
+    FeatureHighlight [label="Visual analysis of binary\n QSAR/QSPR models is unlocked.", shape=ellipse, color="#AED6F1", style="filled", fontcolor=black];
+    
+    // Edges
+    Start -> SmilesOnly;
+    
+    SmilesOnly -> StructureOnly [label="Yes"];
+    SmilesOnly -> OtherColumns [label="No"];
+
+    OtherColumns -> BothGTandProbs [label="Yes"];
+    OtherColumns -> StructureOnly [label="No"];
+
+    BothGTandProbs -> NormalMode [label="Yes"];
+    BothGTandProbs -> AlternativeMode [label="No"];
+    NormalMode -> FeatureHighlight;
+}
+
