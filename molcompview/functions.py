@@ -6,8 +6,10 @@ from os.path import isfile, join
 import logging
 import pandas as pd
 from molcomplib import MolCompass
-from . import __smiles_name__,__class_name__,__set_name__,__probs_name__,__loss_name__
+from . import __smiles_name__,__class_name__,__set_name__,__probs_name__,__loss_name__,__x_name__,__y_name__
 import numpy as np
+
+from .actions import ColumnType
 
 #Make loggers
 logging.basicConfig(level=logging.INFO)
@@ -17,9 +19,8 @@ logger.setLevel(logging.INFO) #FixMe: Set up based on command line argument
 class DatasetState(IntEnum):
     """Enum for dataset stages."""
     STRUCTURES_ONLY = 0
-    GROUND_TRUTH_ONLY = 1
-    PROBS_ONLY = 2
-    FULL = 3
+    ALTERNATIVE_MODE = 1
+    NORMAL = 2
 
 COLUMN_CORRESPONDENCE = {
     __smiles_name__: [
@@ -87,6 +88,14 @@ def guess_probability_column(data):
         return None
 
 
+def convert_to_column_type_dict(initial_dict):
+    key_to_enum = {
+        'binary': ColumnType.BINARY,
+        'categorical': ColumnType.CATEGORICAL,
+        'numerical': ColumnType.NUMERICAL
+    }
+    return {value: key_to_enum[key] for key, values in initial_dict.items() for value in values}
+
 def process_new_file(filename):
     """Process and classify columns of a new data file."""
     data = pd.read_csv(filename, sep=',', low_memory=False)
@@ -107,12 +116,24 @@ def process_new_file(filename):
     if __class_name__ not in data.columns and __probs_name__ not in data.columns:
         dataset_state = DatasetState.STRUCTURES_ONLY
     if __class_name__ in data.columns and __probs_name__ not in data.columns:
-        dataset_state = DatasetState.GROUND_TRUTH_ONLY
+        dataset_state = DatasetState.ALTERNATIVE_MODE
     if __probs_name__ in data.columns and __class_name__ not in data.columns:
-        dataset_state = DatasetState.PROBS_ONLY
+        dataset_state = DatasetState.ALTERNATIVE_MODE
     if __probs_name__ in data.columns and __class_name__ in data.columns and __smiles_name__ in data.columns:
-        dataset_state = DatasetState.FULL
+        dataset_state = DatasetState.NORMAL
         data[__loss_name__] = -(data[__class_name__]*np.log(data[__probs_name__]) + (1-data[__class_name__])*np.log(1-data[__probs_name__]))
+        column_types['numerical'].append(__loss_name__)
+
+    #Report Mode in Main log
+    print(f"Molcompass is running in : {dataset_state} mode")
+    #Run molcomplib
+    compass = MolCompass()
+    #report log
+    logger.info(f"Processing data with MolCompass... (this may take a while)")
+    data = compass.process(data)
+    logger.info("End of processing data with MolCompass, coordinates are added to the dataframe")
+    #Rename columns
+    data.rename(columns={'x': __x_name__, 'y': __y_name__}, inplace=True)
     # else:
     #     # Other scenarios can be handled here, or you can raise an exception if the dataset state is not recognized
     #     raise Exception("Internal error. The dataset state could not be determined based on the columns present.")

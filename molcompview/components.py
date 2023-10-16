@@ -1,9 +1,10 @@
 import dash_bootstrap_components as dbc
+import numpy as np
 from dash import dcc
 from dash import html
 import redis
 from molcompview.actions import generate_figure_from_data
-
+from . import __class_name__,__probs_name__,__set_name__,__smiles_name__,__x_name__,__y_name__,__loss_name__
 def header_alt():
     return dbc.Navbar(
         [
@@ -66,13 +67,20 @@ def get_show_property_options():
     return [{'label': 'test', 'value': 'test', 'disabled': True}]
 
 def select_property_dropdown(property_options):
+    def soft_replacement(x):
+        internal = {__probs_name__: 'Probability', __class_name__: 'Ground Truth',__loss_name__:"Loss"}
+        return internal.get(x, x)
+
+        #Merge the dictionaries
+
+
     return dbc.Col(
         dbc.Row([
             dbc.Label("Select property:",width='auto'),
             dbc.Col(
                 dcc.Dropdown(
                     id="molcompass-select-property-dropdown",
-                    options={f:f for f in property_options},
+                    options={f:soft_replacement(f) for f in property_options},
                 )
             )
         ])
@@ -82,31 +90,24 @@ def select_property_dropdown(property_options):
 
 def molcompass_figure():
     wrapper = dbc.Col([
-        dcc.Graph(id='molcompass-graph', figure=generate_figure_from_data(), style={'height': '90vh', 'width': '98vw'}),
+        dcc.Graph(id='molcompass-graph', figure=generate_figure_from_data(), style={'height': '90vh', 'width': '95vw'}),
         dcc.Tooltip(id="molcompass-graph-tooltip")
     ], width={"size": 12}, align="center")
     return wrapper
 
-def range_selector(min=0, max=1, step=0.01, value=[0, 1]):
+def range_selector(min=0, max=1, step=0.01, value=None):
     #Get vertical height of graph
     return html.Div([dcc.RangeSlider(
             id='molcompass-range-slider',
             min=min,
             max=max,
-            step=step,
-            value=value,
-            # marks={i: str(i) for i in range(min, max, step)},
             marks=None,
-            vertical=True,
-            #verticalHeight=0.9
-        #Caluclate the height of the slider from the height of the figure
-        ), dcc.Interval(
-        id='interval-component',
-        interval=1*1000,  # in milliseconds
-        n_intervals=0
+            # step=step,
+            # marks={float(i): '{:2f}'.format(float(i)) for i in np.arange(min, round(max+0.01,2))},
+            value=(min, max) if value is None else value,
         )],
        id='molcompass-range-slider-container',
-       style={'margin-right': '10px','margin-left':'0','visibility':'hidden'})
+       style={'margin-right': '10px','margin-left':'0','visibility':'hidden','width':'60%'})
 
 def analysis_layout():
     return dbc.Offcanvas(id="analysis-layout", is_open=False, placement="end")
@@ -116,8 +117,9 @@ def molcompass_layout(selectable_columns):
         dbc.Row(select_property_dropdown(selectable_columns), id="molcompass-show-property-dropdown", justify="center"),
             dbc.Container(id='main-figure-container', className='g-0', children=[
                 dbc.Row([
-                    dbc.Container([molcompass_figure(),range_selector(),analysis_layout()],
-                                  style={'display':'grid',"grid-template-columns": "95% 5% 5%"}, className='g-0', fluid=True),
+                    range_selector(),
+                    dbc.Container([molcompass_figure(),analysis_layout()],
+                                  className='g-0', fluid=True),
             ],justify='center')  # Tabs content
                 ])
     ],id="molcompass-layout-content", className='g-0')

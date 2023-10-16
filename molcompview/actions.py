@@ -10,9 +10,11 @@ import pandas as pd
 from dash.exceptions import PreventUpdate
 from rdkit import Chem
 from rdkit.Chem.Draw import rdMolDraw2D
+from scipy.stats import gaussian_kde
 from sklearn.metrics import roc_curve, confusion_matrix, f1_score, matthews_corrcoef, roc_auc_score
 import numpy as np
 from dash import dcc
+from . import __smiles_name__,__class_name__,__set_name__,__probs_name__,__loss_name__,__x_name__,__y_name__
 
 class ColumnType(Enum):
     NUMERICAL = 1
@@ -25,17 +27,18 @@ def generate_figure_from_data(data=None,property=None,column_types=None,range=No
     if property is not None:
         if column_types[property] != ColumnType.NUMERICAL:
             data[f'{property}_cat'] = data[property].astype('category')
-            fig = px.scatter(data, x="x_coord", y="y_coord", color=f'{property}_cat',color_continuous_scale='viridis')
+            fig = px.scatter(data, x=__x_name__, y=__y_name__
+                             , color=f'{property}_cat',color_continuous_scale='viridis')
             #Add colorscale viridis
         else:
             data['color'] = 'gray'
             data['opacity'] = 0.2
             data['color'] = data[property][data[property].between(range[0],range[1])]
             data['opacity'] = data['opacity'].where(data['color'].isna(),1)
-            fig = px.scatter(data, x="x_coord", y="y_coord", color=data['color'],opacity=data['opacity'],color_continuous_scale='viridis')
+            fig = px.scatter(data, x=__x_name__, y=__y_name__, color=data['color'],opacity=data['opacity'],color_continuous_scale='viridis')
 
     else:
-        fig = px.scatter(data, x="x_coord", y="y_coord")
+        fig = px.scatter(data, x=__x_name__, y=__y_name__)
     fig.update_traces(hoverinfo="none", hovertemplate=None)
     fig.update_layout(
         xaxis=dict(title='X - Coordinate'),
@@ -84,6 +87,7 @@ def init_callbacks(app,data,column_types):
     [Input('molcompass-select-property-dropdown', 'value'),
      Input('molcompass-range-slider', 'value')])
     def show_dataset(style,property,range):
+        #print("Range is ",range," inside show_dataset")
         if property is None:
             style['visibility'] = 'hidden'
             min, max = 0, 0
@@ -96,7 +100,9 @@ def init_callbacks(app,data,column_types):
             style['visibility'] = 'hidden'
             min, max = 0, 0
             figure = generate_figure_from_data(data,property,column_types)
-
+        print("We are here, min max are",min,max)
+        if range is [0,1]:
+            range = [min,max]
         return figure,style,min,max,range
 
     @app.callback(
@@ -110,8 +116,8 @@ def init_callbacks(app,data,column_types):
             return html.Div(), False
         points = selection['points']
         # Get logits AND values for selected points
-        df = data.loc[[p['pointNumber'] for p in points], ['smiles', 'class', 'logits']]
-        fpr, tpr, thresholds = roc_curve(df['class'], df['logits'])
+        df = data.loc[[p['pointNumber'] for p in points], [__smiles_name__,__class_name__,__probs_name__]]
+        fpr, tpr, thresholds = roc_curve(df[__class_name__], df[__probs_name__])
         # Plot ROC curve
         fig_roc = go.Figure()
         fig_roc.add_trace(go.Scatter
@@ -154,25 +160,26 @@ def init_callbacks(app,data,column_types):
             opacity=0.8
         )
         # fig = create_distplot(df, group_labels=['logits'], bin_size=0.05)
+        x = np.linspace(min(df[__probs_name__]), max(df[__probs_name__]), 500)
+        kde = gaussian_kde(df[__probs_name__])
+        y = kde(x)
         fig = go.Figure()
-        # Create a distribution plot, not a histogram
-        fig.add_trace(go.Histogram(x=df['logits'], nbinsx=20))
+        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='KDE'))
+
         fig.update_layout(
-            title='Distribution of logits',
-            xaxis_title='Logits',
-            yaxis_title='Count',
+            title='Distribution of Probabilities',
+            xaxis_title='Probability',
+            yaxis_title='Density',
             template='plotly_white',
-            # width=500,
-            height=200,
-            margin=dict(l=0, r=0, t=0, b=0)
+            margin=dict(l=0, r=0, t=10,b=0)
         )
         # Make a confusion matrix
         # Get the threshold
         threshold = 0.5
         # Get the predictions
-        df['pred'] = df['logits'].apply(lambda x: 1 if x > threshold else 0)
+        df['pred'] = df[__probs_name__].apply(lambda x: 1 if x > threshold else 0)
         # Get the confusion matrix
-        cm = confusion_matrix(df['class'], df['pred'])
+        cm = confusion_matrix(df[__class_name__], df['pred'])
         # Plot the confusion matrix
         fig2 = ff.create_annotated_heatmap(cm, x=['Inactive', 'Active'], y=['Inactive', 'Active'],
                                            colorscale='Viridis')
@@ -186,11 +193,11 @@ def init_callbacks(app,data,column_types):
         # Balanced Accuracy
         balanced_accuracy = (sensitivity + specificity) / 2
         # F1 score
-        f1 = f1_score(df['class'], df['pred'])
+        f1 = f1_score(df[__class_name__], df['pred'])
         # MCC
-        mcc = matthews_corrcoef(df['class'], df['pred'])
+        mcc = matthews_corrcoef(df[__class_name__], df['pred'])
         # ROC AUC
-        roc_auc = roc_auc_score(df['class'], df['logits'])
+        roc_auc = roc_auc_score(df[__class_name__], df[__probs_name__])
         # Create a table
         table = go.Figure(data=[go.Table(
             header=dict(values=['Metric', 'Value'],
@@ -223,7 +230,7 @@ def init_callbacks(app,data,column_types):
         if hoverData is None:
             return False, no_update, no_update
 
-        df_subset = data[(data['x_coord'] == hoverData['points'][0]['x']) & (data['y_coord'] == hoverData['points'][0]['y'])]
+        df_subset = data[(data[__x_name__] == hoverData['points'][0]['x']) & (data[__y_name__] == hoverData['points'][0]['y'])]
         pt = hoverData["points"][0]
         bbox = pt["bbox"]
 
@@ -231,34 +238,30 @@ def init_callbacks(app,data,column_types):
             def make_info(dropdown):
                 name = []
                 value = []
-                if 'logits' in point:
-                    name.append('Logits')
-                    value.append('{:.2f}'.format(point['logits']))
-                if 'loss' in point:
+                if __probs_name__ in point:
+                    name.append('Probs')
+                    value.append('{:.2f}'.format(point[__probs_name__]))
+                if __set_name__ in point:
                     name.append('Loss')
-                    value.append('{:.2f}'.format(point['loss']))
-                if 'class' in point:
-                    name.append('Class')
-                    value.append(point['class'])
+                    value.append('{:.2f}'.format(point[__loss_name__]))
+                if __class_name__ in point:
+                    name.append('Ground Truth')
+                    value.append(point[__class_name__])
                 # if dropdown is not []:
                 #     name = dropdown
                 #     value = point[dropdown]
                 table = dbc.Table.from_dataframe(pd.DataFrame({"Name":name,"Value":value}), striped=True, bordered=False, hover=True)
                 return table
-
+            def generete_head_for_molcard():
+                pass
 
             return html.Div([
-                html.Img(src=imgFromSmiles(point['smiles']), style={'width': '20wh', 'height': '20vh'}),
-                #Demonstrate the selected property
+                html.Img(src=imgFromSmiles(point[__smiles_name__]), style={'width': '20wh', 'height': '20vh'}),
                 html.Div(
                     make_info(dropdown),
                 style={ 'color': '#000000',
                                                                          'background-color': '#f5f5f5', 'border': '1px solid #dcdcdc',
                                                                          'padding': '10px', 'text-align': 'center'})
-                #html.P(, style={'width': '100%', 'height': '100%'}),
-                #Make a table with Doha\'s models and Iris\'s models for each target
-                #html.P(f'Doha\'s model: {round(point["doha"],3)}'),
-                #html.P(f'Iris\' model: {round(point["iris"],3)}'),
             ], style={'font-size': '18px','display': 'inline', 'maxWidth': '100px', 'maxHeight': '100px'})
 
 
@@ -267,14 +270,3 @@ def init_callbacks(app,data,column_types):
         ])
 
         return True, bbox, children
-
-    @app.callback(
-        Output('molcompass-range-slider', 'verticalHeight'),
-        Input('interval-component', 'n_intervals')
-    )
-    def update_slider_height(n_intervals):
-        if n_intervals == 0:
-            raise PreventUpdate
-        height = dash.callback_context.eval_js('getFigureHeight()')
-        print("Height is", height)
-        return height
