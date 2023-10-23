@@ -16,7 +16,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'molcompview = molcompview.main:entry_point',
+            'molcompview = molcompview.main:main',
         ],
     },
     license = "MIT",
