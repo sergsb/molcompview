@@ -9,6 +9,7 @@ setup(
     install_requires=[
         'molcomplib',
         'rdkit',
+        'appdata',  
         'numpy',
         'fire',
         'dash',
