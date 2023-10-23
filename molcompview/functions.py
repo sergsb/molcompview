@@ -6,7 +6,8 @@ from os.path import isfile, join
 import logging
 import pandas as pd
 from molcomplib import MolCompass
-from . import __smiles_name__,__class_name__,__set_name__,__probs_name__,__loss_name__,__x_name__,__y_name__
+from . import __smiles_name__, __class_name__, __set_name__, __probs_name__, __loss_name__, __x_name__, __y_name__, \
+    DatasetState
 import numpy as np
 
 from .actions import ColumnType
@@ -16,11 +17,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO) #FixMe: Set up based on command line argument
 
-class DatasetState(IntEnum):
-    """Enum for dataset stages."""
-    STRUCTURES_ONLY = 0
-    ALTERNATIVE_MODE = 1
-    NORMAL = 2
+
+
+
 
 COLUMN_CORRESPONDENCE = {
     __smiles_name__: [
@@ -125,7 +124,8 @@ def process_new_file(filename):
         column_types['numerical'].append(__loss_name__)
 
     #Report Mode in Main log
-    print(f"Molcompass is running in : {dataset_state} mode")
+    mode_txt = {0:"STRUCTURES_ONLY",1:"ALTERNATIVE_MODE",2:"NORMAL"}
+    print(f"Molcompass is running in {mode_txt[dataset_state]} mode")
     #Run molcomplib
     compass = MolCompass()
     #report log

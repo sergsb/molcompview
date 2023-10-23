@@ -1,11 +1,18 @@
-from enum import Enum
+import hashlib
+import json
+import sys
+from enum import Enum, IntEnum
+
 __package__ = "molcompview"
-from os.path import isfile
+from os.path import isfile, join
 
 import dash_bootstrap_components as dbc
 import base64
 import os
-from . import __x_name__,__y_name__,__smiles_name__
+
+from appdata import AppDataPaths
+
+from . import __x_name__, __y_name__, __smiles_name__, __version__, DatasetState
 import dash
 import fire
 import pandas as pd
@@ -14,13 +21,13 @@ import logging
 from dash import Dash, dcc, html, no_update, Output, Input, MATCH, ALL
 import plotly.graph_objects as go
 from molcomplib import MolCompass
-from molcompview.actions import init_callbacks, ColumnType
+from molcompview.actions import init_callbacks
 from molcompview.components import header, molcompass_layout, header_alt
 from molcompview.functions import process_new_file, convert_to_column_type_dict
-
-
 #Create enums for numerical, categorical and binary columns
 
+app_paths = AppDataPaths()
+app_paths.setup()
 
 
 def _get_column_types(data):
@@ -86,8 +93,8 @@ def get_column_prob(data):
     return guess
 
 
-# def entry_point():
-#     fire.Fire(main)
+def entry_point():
+    fire.Fire(main)
 
 def main(file,precompute=False,log_level="ERROR"):
     def make_dropdown(useful_columns):
@@ -101,17 +108,37 @@ def main(file,precompute=False,log_level="ERROR"):
         raise FileNotFoundError("File {} not found, please specify a csv file".format(file))
 
     logging.basicConfig(level=log_level)
-    data,dataset_state,column_types = process_new_file(file)
+    logging.info("Starting MolCompass Viewer")
+    #Calculate MD5 hash of file
+    hash = hashlib.md5(open(file, 'rb').read()).hexdigest()
+    processed_file_name = join(app_paths.app_data_path, hash + ".csv")
+    if not isfile(processed_file_name):
+        logging.info("File {} not found in cache, processing it".format(processed_file_name))
+        data,dataset_state,column_types = process_new_file(file)
+        first = json.dumps({'state': dataset_state.value, 'column_types': column_types, 'version': __version__})
+        data.to_csv(processed_file_name, index=False)
+        # Add the fist row to the file with the dataset state and the column types
+        with open(processed_file_name, 'r+') as f:
+            content = f.read()
+            f.seek(0, 0)
+            f.write(first.rstrip('\r\n') + '\n' + content)
+    else:
+        logging.info("File {} found in cache, loading it".format(processed_file_name))
+        with open(processed_file_name, 'r') as f:
+            first = f.readline()
+            dataset_state = DatasetState(int(json.loads(first)['state']))
+            column_types = json.loads(first)['column_types']
+            data = pd.read_csv(processed_file_name,skiprows=1)
     column_types = convert_to_column_type_dict(column_types)
     useful_columns = [col for col in data.columns if col not in [__x_name__,__y_name__,__smiles_name__]]
-
+    logging.info("Useful columns: {}".format(useful_columns))
     app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
     app.layout = dbc.Container([
         dbc.Row([dbc.Col(header_alt(), className='g-0')]),  # Header
         dbc.Row([dbc.Col(molcompass_layout(useful_columns), className='g-0')],id='main-layout'),  # Main
     ], fluid=True
     )
-    init_callbacks(app,data,column_types)
+    init_callbacks(app,data,column_types,dataset_state)
     app.run_server(debug=True)
 
 

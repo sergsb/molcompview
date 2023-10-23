@@ -20,7 +20,6 @@ def header():
         dbc.Container(
             [
                 html.A(
-                    # Use row and col to control vertical alignment of logo / brand
                     dbc.Row(id='logo', children=
                     [
                         dbc.Col(html.Img(src="assets/MolCompass.svg", height="30px")),
@@ -29,20 +28,15 @@ def header():
                             align="center",
                             className="g-0",
                             ),
-                    # href="https://molinfo.space",
-                    style={"textDecoration": "none"},
                     className="ml-auto",
                 ),
             ],
             fluid=True,
-            style={"padding": "0.1rem 3rem"},
         ),
         color="dark",
         dark=True,
-        className="mb-6",
+        className="mb-4",  # Adjusted margin-bottom
     )
-
-
 def manual_layout():
     return dbc.Row([
         dbc.Col([
@@ -84,15 +78,15 @@ def select_property_dropdown(property_options):
                 )
             )
         ])
-    , width=6, align="center", className='g-2 p-2')
+    , width=5, align="center", className='g-2 p-2')
 
 
 
 def molcompass_figure():
     wrapper = dbc.Col([
-        dcc.Graph(id='molcompass-graph', figure=generate_figure_from_data(), style={'height': '90vh', 'width': '95vw'}),
+        dcc.Graph(id='molcompass-graph', figure=generate_figure_from_data(), style={'height': '80vh', 'width': '94vw', 'margin-left': '20px', 'margin-right': '0'}),
         dcc.Tooltip(id="molcompass-graph-tooltip")
-    ], width={"size": 12}, align="center")
+    ], width={"size": 11}, align="center")
     return wrapper
 
 def range_selector(min=0, max=1, step=0.01, value=None):

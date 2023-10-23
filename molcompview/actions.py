@@ -1,6 +1,6 @@
 import base64
 import dash
-from enum import Enum
+from enum import Enum, IntEnum
 from dash import Output, Input, no_update, ALL, html, State, ClientsideFunction
 import dash_bootstrap_components as dbc
 import plotly.figure_factory as ff
@@ -14,7 +14,9 @@ from scipy.stats import gaussian_kde
 from sklearn.metrics import roc_curve, confusion_matrix, f1_score, matthews_corrcoef, roc_auc_score
 import numpy as np
 from dash import dcc
-from . import __smiles_name__,__class_name__,__set_name__,__probs_name__,__loss_name__,__x_name__,__y_name__
+from . import __smiles_name__, __class_name__, __set_name__, __probs_name__, __loss_name__, __x_name__, __y_name__, \
+    DatasetState
+
 
 class ColumnType(Enum):
     NUMERICAL = 1
@@ -75,7 +77,7 @@ def imgFromSmiles(smiles):
 
 
 
-def init_callbacks(app,data,column_types):
+def init_callbacks(app,data,column_types,dataset_state):
 
     @app.callback(
     Output('molcompass-graph', 'figure'),
@@ -100,7 +102,6 @@ def init_callbacks(app,data,column_types):
             style['visibility'] = 'hidden'
             min, max = 0, 0
             figure = generate_figure_from_data(data,property,column_types)
-        print("We are here, min max are",min,max)
         if range is [0,1]:
             range = [min,max]
         return figure,style,min,max,range
@@ -229,39 +230,62 @@ def init_callbacks(app,data,column_types):
     def display_hover(hoverData, dropdown):
         if hoverData is None:
             return False, no_update, no_update
+        def act_or_inact(x):
+            if x == 0.0:
+                return html.P('Inactive', style={'color': 'red', 'font-size': '16px', 'text-align': 'center'})
+            else:
+                return html.P('Active', style={'color': 'green', 'font-size': '16px', 'text-align': 'center'})
+        def probs_and_loss(prob,loss):
+            #Make two lines, one for probs and one for loss, turn loss to percentage
+            face = ""  # No face
+            if loss < 0.3 and (prob < 0.4 or prob > 0.6):
+                face = "😊"  # Smiley face
+            elif 0.4 <= prob <= 0.6:
+                face = "😐"  # Neutral face
+            elif loss > 0.7:
+                face = "😠"  # Angry face
+            line1 = html.P('Prob. (being active): {:.0f}%'.format(prob*100), style={'color': 'black', 'font-size': '16px', 'text-align': 'center'})
+            line2 = html.P('Loss: {:.2f}'.format(loss), style={'color': 'black', 'font-size': '16px', 'text-align': 'center'})
+            line3 = html.P(face, style={'color': 'black', 'font-size': '35px', 'text-align': 'center'})
+            return html.Div([line1,line2,line3])
 
         df_subset = data[(data[__x_name__] == hoverData['points'][0]['x']) & (data[__y_name__] == hoverData['points'][0]['y'])]
         pt = hoverData["points"][0]
         bbox = pt["bbox"]
+        #Check the mode (NORMAL, ALTERNATIVE_MODE, STRUCTURES_ONLY)
+
+
 
         def make_molecular_card(point):
-            def make_info(dropdown):
-                name = []
-                value = []
-                if __probs_name__ in point:
-                    name.append('Probs')
-                    value.append('{:.2f}'.format(point[__probs_name__]))
-                if __set_name__ in point:
-                    name.append('Loss')
-                    value.append('{:.2f}'.format(point[__loss_name__]))
-                if __class_name__ in point:
-                    name.append('Ground Truth')
-                    value.append(point[__class_name__])
+            # def make_info(dropdown):
+            #     name = []
+            #     value = []
+            #     if __probs_name__ in point:
+            #         name.append('Probs')
+            #         value.append('{:.2f}'.format(point[__probs_name__]))
+            #     if __set_name__ in point:
+            #         name.append('Loss')
+            #         value.append('{:.2f}'.format(point[__loss_name__]))
+            #     if __class_name__ in point:
+            #         name.append('Ground Truth')
+            #         value.append(point[__class_name__])
                 # if dropdown is not []:
                 #     name = dropdown
                 #     value = point[dropdown]
-                table = dbc.Table.from_dataframe(pd.DataFrame({"Name":name,"Value":value}), striped=True, bordered=False, hover=True)
-                return table
+                #table = dbc.Table.from_dataframe(pd.DataFrame({"Name":name,"Value":value}), striped=True, bordered=False, hover=True)
+                #return table
             def generete_head_for_molcard():
                 pass
 
             return html.Div([
+                act_or_inact(point[__class_name__]) if DatasetState.NORMAL else html.Div(id='empty-div'),
+                probs_and_loss(point[__probs_name__],point[__loss_name__]) if DatasetState.NORMAL else html.Div(id='empty-div'),
                 html.Img(src=imgFromSmiles(point[__smiles_name__]), style={'width': '20wh', 'height': '20vh'}),
-                html.Div(
-                    make_info(dropdown),
-                style={ 'color': '#000000',
-                                                                         'background-color': '#f5f5f5', 'border': '1px solid #dcdcdc',
-                                                                         'padding': '10px', 'text-align': 'center'})
+#                 html.Div(
+# #                    make_info(dropdown),
+#                 style={ 'color': '#000000',
+#                                                                          'background-color': '#f5f5f5', 'border': '1px solid #dcdcdc',
+#                                                                          'padding': '10px', 'text-align': 'center'})
             ], style={'font-size': '18px','display': 'inline', 'maxWidth': '100px', 'maxHeight': '100px'})
 
 
