@@ -2,7 +2,6 @@ import dash_bootstrap_components as dbc
 import numpy as np
 from dash import dcc
 from dash import html
-import redis
 from molcompview.actions import generate_figure_from_data
 from . import __class_name__,__probs_name__,__set_name__,__smiles_name__,__x_name__,__y_name__,__loss_name__
 def header_alt():
