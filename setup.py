@@ -11,6 +11,7 @@ setup(
         'rdkit',
         'appdata',  
         'numpy',
+        'pandas',
         'fire',
         'dash',
         'dash-bootstrap-components',
