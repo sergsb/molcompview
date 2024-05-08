@@ -13,6 +13,7 @@ setup(
         'numpy',
         'pandas',
         'scipy',
+        'scikit-learn',
         'fire',
         'dash',
         'dash-bootstrap-components',
