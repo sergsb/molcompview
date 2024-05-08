@@ -12,6 +12,7 @@ setup(
         'appdata',  
         'numpy',
         'pandas',
+        'scipy',
         'fire',
         'dash',
         'dash-bootstrap-components',
