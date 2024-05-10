@@ -30,11 +30,11 @@ jobs:
           mkdir -p AppDir/usr/bin
           mkdir -p AppDir/usr/lib/python3.8/site-packages
           cp -r $(python -c 'import site; print(site.getsitepackages()[0])')/* AppDir/usr/lib/python3.8/site-packages/
-          cp your_script.py AppDir/usr/bin/
+          cp -r molcompview AppDir/usr/bin/
           echo '#!/bin/bash' > AppDir/AppRun
           echo 'HERE=$(dirname $(readlink -f "${0}"))' >> AppDir/AppRun
           echo 'export PYTHONPATH=${HERE}/usr/lib/python3.8/site-packages' >> AppDir/AppRun
-          echo 'exec python3 ${HERE}/usr/bin/your_script.py "$@"' >> AppDir/AppRun
+          echo 'exec python3 ${HERE}/usr/bin/molcompview/main.py "$@"' >> AppDir/AppRun
           chmod +x AppDir/AppRun
 
       - name: Download linuxdeploy and Create AppImage
