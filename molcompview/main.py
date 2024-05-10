@@ -6,7 +6,7 @@ from enum import Enum, IntEnum
 
 __package__ = "molcompview"
 from os.path import isfile, join
-
+from importlib.resources import files, as_file
 import dash_bootstrap_components as dbc
 import base64
 import os
@@ -92,16 +92,29 @@ def get_column_prob(data):
             logging.info("Could not guess the column with probabilities, please specify it manually")
     return guess
 
+
 def main():
-    # Set up the argument parser
     parser = argparse.ArgumentParser(description="Process a CSV file with MolCompass Viewer.")
-    parser.add_argument('file', type=str, help='The path to the CSV file to process')
+    parser.add_argument('file', type=str, nargs='?', default=None, help='The path to the CSV file to process')
+    parser.add_argument('--demo', action='store_true', help='Run with the demo file data/endocrine/er.csv')
     parser.add_argument('--precompute', action='store_true', help='Whether to precompute certain data (default: False)')
     parser.add_argument('--log_level', type=str, default='ERROR', help='Logging level (default: ERROR)')
-    # Parse the arguments
+
     args = parser.parse_args()
-    # Now call your existing main logic with these arguments
-    main_logic(args.file, precompute=args.precompute, log_level=args.log_level)
+
+    # Decide which file to use based on the arguments
+    if args.demo:
+        with as_file(files('molcompview').joinpath(join('data','endocrine-receptor','endocrine.csv'))) as p:
+            file_path = p
+
+    elif args.file:
+        file_path = args.file
+    else:
+        print("Error: No file specified and the --demo flag is not set.")
+        parser.print_help()
+        sys.exit(1)
+
+    main_logic(file_path, precompute=args.precompute, log_level=args.log_level)
 
 def main_logic(file,precompute=False,log_level="ERROR"):
     def make_dropdown(useful_columns):
