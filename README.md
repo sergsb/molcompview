@@ -50,6 +50,9 @@ Available when the CSV file comprises SMILES strings along with Ground Truth and
 The applicability domain analysis is possible only in FULL mode for binary classification models. To run this tool, first select a tool from the top left corner of the chemical map, then select an area of interest and release. A new frame will open on the right, displaying statistical parameters and charts calculated exclusively for the selected compounds.
 <img align="left" src="https://github.com/sergsb/molcompview/assets/4963384/43348a05-d700-428d-9112-d11e29d937d4" width='600px'> 
 
+
+<br clear="left">
+
 ## Screenshots
 
 <img align="left" src="https://github.com/sergsb/molcompview/assets/4963384/07be5580-8d21-4f50-b528-80f5b5d0e5f6.png" width='600px'> 
