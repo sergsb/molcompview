@@ -43,10 +43,10 @@ jobs:
           chmod +x AppDir/AppRun
           
       
-      - name: List contents of the library directory
+      - name: Searching rdkit libs
         run: |
-          echo "Listing library directory:"
-          ls -la /usr/lib/python3.11/site-packages/rdkit.libs/
+          echo "Searching library directory:"
+          find / -type f -name '*libRDKitFMCS*'
 
           
       - name: Download linuxdeploy and Create AppImage
