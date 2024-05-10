@@ -10,10 +10,16 @@ The MolCompass application
 <br clear="left">
 
 ## Installation
-``pip install molcompview``
+The package can be installed using `pip` ``pip install molcompview``
 <br>
 
 ## Run
+### Demo
+To run the endocrine receptor example described in the manuscript (coming soon), you may do so by executing the following steps.
+```molcompview --demo```.
+Then, wait some time for the calculation of coordinates. After that stage, the browser will open, and you can view the interactive visualization of the chemical space.
+### Your own dataset
+To run on your own dataset, just use:
 ```
 molcompview <input.csv>
 ```
