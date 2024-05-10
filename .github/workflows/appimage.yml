@@ -18,7 +18,7 @@ jobs:
       - name: Install libfuse2 & rdkit
         run: |
           sudo apt update
-          sudo apt install -y libfuse2 apt-get install python-rdkit librdkit1 rdkit-data
+          sudo apt install -y libfuse2 python-rdkit librdkit1 rdkit-data
           
       - name: Set up Python
         uses: actions/setup-python@v2
