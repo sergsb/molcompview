@@ -23,7 +23,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.8'
+          python-version: '3.11'
 
       - name: Install Dependencies from setup.py
         run: |
@@ -33,12 +33,12 @@ jobs:
       - name: Prepare AppDir and AppRun
         run: |
           mkdir -p AppDir/usr/bin
-          mkdir -p AppDir/usr/lib/python3.8/site-packages
-          cp -r $(python -c 'import site; print(site.getsitepackages()[0])')/* AppDir/usr/lib/python3.8/site-packages/
+          mkdir -p AppDir/usr/lib/python3.11/site-packages
+          cp -r $(python -c 'import site; print(site.getsitepackages()[0])')/* AppDir/usr/lib/python3.11/site-packages/
           cp -r molcompview AppDir/usr/bin/
           echo '#!/bin/bash' > AppDir/AppRun
           echo 'HERE=$(dirname $(readlink -f "${0}"))' >> AppDir/AppRun
-          echo 'export PYTHONPATH=${HERE}/usr/lib/python3.8/site-packages' >> AppDir/AppRun
+          echo 'export PYTHONPATH=${HERE}/usr/lib/python3.11/site-packages' >> AppDir/AppRun
           echo 'exec python3 ${HERE}/usr/bin/molcompview/main.py "$@"' >> AppDir/AppRun
           chmod +x AppDir/AppRun
 
