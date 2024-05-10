@@ -44,11 +44,13 @@ jobs:
           
       - name: Set LD_LIBRARY_PATH
         run: |
-          echo "LD_LIBRARY_PATH=${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
-        
-      - name: List RDKit libraries
+          echo "LD_LIBRARY_PATH=/opt/hostedtoolcache/Python/3.11.9/x64/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+
+      - name: List contents of the library directory
         run: |
-          ls -la ${CONDA_PREFIX}/lib/*
+          echo "Listing library directory:"
+          ls -la /opt/hostedtoolcache/Python/3.11.9/x64/lib
+
           
       - name: Download linuxdeploy and Create AppImage
         run: |
