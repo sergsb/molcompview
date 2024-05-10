@@ -1,0 +1,53 @@
+name: Build AppImage
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Setup Miniconda
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: 3.8
+        environment-file: environment.yml
+        activate-environment: myapp
+
+    - name: Install Dependencies
+      run: |
+        conda install --file requirements.txt
+
+    - name: Prepare AppDir and AppRun
+      run: |
+        mkdir -p AppDir/usr/bin
+        mkdir -p AppDir/usr/lib
+        cp -r $CONDA_PREFIX/* AppDir/usr/
+        cp your_script.py AppDir/usr/bin/
+        echo '#!/bin/bash' > AppDir/AppRun
+        echo 'HERE=$(dirname $(readlink -f "${0}"))' >> AppDir/AppRun
+        echo 'export PATH="${HERE}/usr/bin:$PATH"' >> AppDir/AppRun
+        echo 'exec python ${HERE}/usr/bin/your_script.py "$@"' >> AppDir/AppRun
+        chmod +x AppDir/AppRun
+
+    - name: Download linuxdeploy and create AppImage
+      run: |
+        wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+        chmod +x linuxdeploy-x86_64.AppImage
+        ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage
+
+    - name: Upload AppImage
+      uses: actions/upload-artifact@v2
+      with:
+        name: molcomplib.AppImage
+        path: molcomplib.AppImage
