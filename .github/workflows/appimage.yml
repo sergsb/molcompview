@@ -41,14 +41,11 @@ jobs:
           echo 'export PYTHONPATH=${HERE}/usr/lib/python3.11/site-packages' >> AppDir/AppRun
           echo 'exec python3 ${HERE}/usr/bin/molcompview/main.py "$@"' >> AppDir/AppRun
           chmod +x AppDir/AppRun
-          
-      
-      - name: Searching rdkit libs
-        run: |
-          echo "Searching library directory:"
-          find / -type f -name '*libRDKitFMCS*'
 
-          
+      - name: Set LD_LIBRARY_PATH
+        run: |
+          echo "LD_LIBRARY_PATH=/home/runner/work/molcompview/molcompview/AppDir/usr/lib/python3.11/site-packages/rdkit.libs/:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+  
       - name: Download linuxdeploy and Create AppImage
         run: |
           wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
