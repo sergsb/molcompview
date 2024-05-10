@@ -3,7 +3,7 @@ from setuptools import setup,find_packages
 setup(
     python_requires='>=3.6',  # Your supported Python ranges
     name = "molcompview",
-    version = "0.1.0",
+    version = "0.1.1",
     include_package_data=False,
     packages=find_packages(),
     install_requires=[
