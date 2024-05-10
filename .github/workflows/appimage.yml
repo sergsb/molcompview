@@ -45,12 +45,17 @@ jobs:
       - name: Set LD_LIBRARY_PATH
         run: |
           echo "LD_LIBRARY_PATH=${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+        
+      - name: List RDKit libraries
+        run: |
+          ls -la ${CONDA_PREFIX}/lib
           
       - name: Download linuxdeploy and Create AppImage
         run: |
           wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           chmod +x linuxdeploy-x86_64.AppImage
           ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage
+
 
       - name: Upload AppImage as Build Artifact
         uses: actions/upload-artifact@v2
