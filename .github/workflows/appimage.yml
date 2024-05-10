@@ -15,6 +15,11 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v2
 
+      - name: Install libfuse2
+        run: |
+          sudo apt update
+          sudo apt install -y libfuse2
+          
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
