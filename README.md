@@ -10,7 +10,7 @@ MolCompassViewer is a part of the MolCompass project. It is a tool that provides
 <br clear="left">
 
 ## Installation
-The package can be installed: `pip install molcompview``
+The package can be installed: `pip install molcompview`
 <br>
 
 ## Run
