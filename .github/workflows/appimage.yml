@@ -48,7 +48,7 @@ jobs:
         
       - name: List RDKit libraries
         run: |
-          ls -la ${CONDA_PREFIX}/lib
+          ls -la ${CONDA_PREFIX}/lib/*
           
       - name: Download linuxdeploy and Create AppImage
         run: |
