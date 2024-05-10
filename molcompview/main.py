@@ -1,3 +1,4 @@
+import argparse
 import hashlib
 import json
 import sys
@@ -14,7 +15,6 @@ from appdata import AppDataPaths
 
 from . import __x_name__, __y_name__, __smiles_name__, __version__, DatasetState
 import dash
-import fire
 import pandas as pd
 import numpy as np
 import logging
@@ -92,11 +92,18 @@ def get_column_prob(data):
             logging.info("Could not guess the column with probabilities, please specify it manually")
     return guess
 
+def main():
+    # Set up the argument parser
+    parser = argparse.ArgumentParser(description="Process a CSV file with MolCompass Viewer.")
+    parser.add_argument('file', type=str, help='The path to the CSV file to process')
+    parser.add_argument('--precompute', action='store_true', help='Whether to precompute certain data (default: False)')
+    parser.add_argument('--log_level', type=str, default='ERROR', help='Logging level (default: ERROR)')
+    # Parse the arguments
+    args = parser.parse_args()
+    # Now call your existing main logic with these arguments
+    main_logic(args.file, precompute=args.precompute, log_level=args.log_level)
 
-def entry_point():
-    fire.Fire(main)
-
-def main(file,precompute=False,log_level="ERROR"):
+def main_logic(file,precompute=False,log_level="ERROR"):
     def make_dropdown(useful_columns):
         return dcc.Dropdown(
             id='dropdown',
@@ -146,8 +153,7 @@ def main(file,precompute=False,log_level="ERROR"):
 # def main():
 #       fire.Fire(show)
 
-if (__name__ == '__main__'): #For debug onlyj
-      #Print the current directory
-      fire.Fire(main)
+if (__name__ == '__main__'): #For debug only
+     main()
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
