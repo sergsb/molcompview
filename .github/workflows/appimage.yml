@@ -42,14 +42,11 @@ jobs:
           echo 'exec python3 ${HERE}/usr/bin/molcompview/main.py "$@"' >> AppDir/AppRun
           chmod +x AppDir/AppRun
           
-      - name: Set LD_LIBRARY_PATH
-        run: |
-          echo "LD_LIBRARY_PATH=/opt/hostedtoolcache/Python/3.11.9/x64/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
-
+      
       - name: List contents of the library directory
         run: |
           echo "Listing library directory:"
-          ls -la /opt/hostedtoolcache/Python/3.11.9/x64/lib
+          ls -la /usr/lib/python3.11/site-packages/rdkit.libs/
 
           
       - name: Download linuxdeploy and Create AppImage
