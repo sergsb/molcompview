@@ -4,7 +4,7 @@ The MolCompass application
 
 <img align="left" src="https://user-images.githubusercontent.com/4963384/218703831-1460bc07-7e9f-417e-9b0c-c9675db5de9f.png"> 
 <p align="justify">
-`MolCompassViewer` is a part of the `MolCompass` project. It is a tool that provides a pretrained parametric t-SNE model for chemical space visualization and the visual validation of QSAR/QSPR models.  
+```MolCompassViewer``` is a part of the `MolCompass` project. It is a tool that provides a pretrained parametric t-SNE model for chemical space visualization and the visual validation of QSAR/QSPR models.  
 </p>
 
 <br clear="left">
