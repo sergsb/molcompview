@@ -8,8 +8,9 @@ setup(
     package_data={
       'molcomplib': ['data/*'],
    },
-    packages=find_packages(),
-    install_requires=[
+   zip_safe=False, 
+   packages=find_packages(),
+   install_requires=[
         'molcomplib',
         'rdkit',
         'appdata',  
