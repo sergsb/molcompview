@@ -4,7 +4,7 @@ setup(
     python_requires='>=3.6',  # Your supported Python ranges
     name = "molcompview",
     version = "0.1.1",
-    include_package_data=False,
+    include_package_data=True,
     packages=find_packages(),
     install_requires=[
         'molcomplib',
