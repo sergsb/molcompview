@@ -57,5 +57,7 @@ The applicability domain analysis is possible only in FULL mode for binary class
 
 <img align="left" src="https://github.com/sergsb/molcompview/assets/4963384/07be5580-8d21-4f50-b528-80f5b5d0e5f6.png" width='600px'> 
 
+<br clear="left">
+
 ## DOI for the package version 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.12529949.svg)](https://doi.org/10.5281/zenodo.12529949)
