@@ -94,7 +94,6 @@ def imgFromSmiles(smiles):
 
 
 def init_callbacks(app, data, column_types, dataset_state):
-
     @app.callback(
         Output("molcompass-graph", "figure"),
         Output("molcompass-range-slider-container", "style"),
