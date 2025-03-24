@@ -154,15 +154,23 @@ def convert_to_column_type_dict(initial_dict):
 
 
 def process_new_file(filename):
-    """Process and classify columns of a new data file."""
+    """Process and classify columns of a new data file following the scheme:
+    1. If only SMILES column -> STRUCTURES_ONLY
+    2. If other columns exist, check for categorical/numerical columns
+    3. If no categorical/numerical -> STRUCTURES_ONLY
+    4. If has categorical/numerical:
+       - If both Ground Truth and Probabilities -> FULL mode
+       - Otherwise -> PROPERTIES_ONLY mode
+    """
     data = pd.read_csv(filename, sep=",", low_memory=False)
+    
+    # First identify all potential columns
     smiles_col = get_column_name(data, __smiles_name__, raise_error=False)
     class_col = get_column_name(data, __class_name__, raise_error=False)
+    prob_col = get_column_name(data, __probs_name__, raise_error=False)
     split_col = get_column_name(data, __set_name__, raise_error=False)
-    prob_col = get_column_name(
-        data, __probs_name__, raise_error=False
-    ) or guess_probability_column(data)
 
+    # Map columns to standard names
     column_mapping = {}
     if smiles_col:
         column_mapping[smiles_col] = __smiles_name__
@@ -174,25 +182,37 @@ def process_new_file(filename):
         column_mapping[prob_col] = __probs_name__
 
     data.rename(columns=column_mapping, inplace=True)
-
+    
+    # Get column types for analysis
     column_types = identify_column_types(data)
-    if __class_name__ not in data.columns and __probs_name__ not in data.columns:
+    
+    # Follow the decision tree from the scheme
+    if __smiles_name__ in data.columns and len(data.columns) == 1:
+        # Only SMILES column -> STRUCTURES_ONLY
         dataset_state = DatasetState.STRUCTURES_ONLY
-    if __class_name__ in data.columns and __probs_name__ not in data.columns:
-        dataset_state = DatasetState.ALTERNATIVE_MODE
-    if __probs_name__ in data.columns and __class_name__ not in data.columns:
-        dataset_state = DatasetState.ALTERNATIVE_MODE
-    if (
-        __probs_name__ in data.columns
-        and __class_name__ in data.columns
-        and __smiles_name__ in data.columns
-    ):
-        dataset_state = DatasetState.NORMAL
-        data[__loss_name__] = -(
-            data[__class_name__] * np.log(data[__probs_name__])
-            + (1 - data[__class_name__]) * np.log(1 - data[__probs_name__])
-        )
-        column_types["numerical"].append(__loss_name__)
+    else:
+        # Check if there are any categorical OR numerical columns
+        has_cat_or_num = len(column_types['categorical']) > 0 or len(column_types['numerical']) > 0
+        
+        if not has_cat_or_num:
+            # No categorical/numerical columns -> STRUCTURES_ONLY
+            dataset_state = DatasetState.STRUCTURES_ONLY
+        else:
+            # Has categorical/numerical columns, check for FULL mode conditions
+            has_ground_truth = __class_name__ in data.columns
+            has_probabilities = __probs_name__ in data.columns
+            
+            if has_ground_truth and has_probabilities:
+                # Both Ground Truth and Probabilities -> FULL mode
+                dataset_state = DatasetState.NORMAL
+                data[__loss_name__] = -(
+                    data[__class_name__] * np.log(data[__probs_name__])
+                    + (1 - data[__class_name__]) * np.log(1 - data[__probs_name__])
+                )
+                column_types['numerical'].append(__loss_name__)
+            else:
+                # Missing either Ground Truth or Probabilities -> PROPERTIES_ONLY
+                dataset_state = DatasetState.ALTERNATIVE_MODE
 
     # Report Mode in Main log
     mode_txt = {0: "STRUCTURES_ONLY", 1: "ALTERNATIVE_MODE", 2: "NORMAL"}

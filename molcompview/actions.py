@@ -350,33 +350,81 @@ def init_callbacks(app, data, column_types, dataset_state):
             def generete_head_for_molcard():
                 pass
 
+            # Create property info display for PROPERTIES_ONLY mode
+            def make_property_info(point):
+                # Create table header
+                header = html.Thead(html.Tr([
+                    html.Th('Property', style={'text-align': 'left', 'padding': '4px 8px', 'border-bottom': '2px solid #ddd'}),
+                    html.Th('Value', style={'text-align': 'right', 'padding': '4px 8px', 'border-bottom': '2px solid #ddd'})
+                ]))
+                
+                # Create table rows for all properties except internal ones
+                rows = []
+                internal_cols = [__smiles_name__, __x_name__, __y_name__, 'color', 'opacity']
+                
+                for col, value in point.items():
+                    if col not in internal_cols:
+                        if isinstance(value, float):
+                            formatted_value = f"{value:.3f}"
+                        else:
+                            formatted_value = str(value)
+                        
+                        row = html.Tr([
+                            html.Td(col, style={'text-align': 'left', 'padding': '4px 8px', 'border-bottom': '1px solid #eee'}),
+                            html.Td(formatted_value, style={'text-align': 'right', 'padding': '4px 8px', 'border-bottom': '1px solid #eee'})
+                        ])
+                        rows.append(row)
+                
+                # Create table body
+                body = html.Tbody(rows)
+                
+                # Create table with styling
+                table = html.Table(
+                    [header, body],
+                    style={
+                        'width': '100%',
+                        'border-collapse': 'collapse',
+                        'font-family': 'Arial, sans-serif',
+                        'font-size': '14px',
+                        'margin': '8px 0',
+                        'background-color': 'white',
+                        'border-radius': '4px',
+                        'box-shadow': '0 1px 3px rgba(0,0,0,0.1)'
+                    }
+                )
+                
+                return table
+
             return html.Div(
                 [
+                    # Only show class and probability info in FULL mode
                     (
                         act_or_inact(point[__class_name__])
-                        if DatasetState.NORMAL
+                        if dataset_state == DatasetState.NORMAL
                         else html.Div(id="empty-div")
                     ),
                     (
                         probs_and_loss(point[__probs_name__], point[__loss_name__])
-                        if DatasetState.NORMAL
+                        if dataset_state == DatasetState.NORMAL
                         else html.Div(id="empty-div")
                     ),
                     html.Img(
                         src=imgFromSmiles(point[__smiles_name__]),
                         style={"width": "20wh", "height": "20vh"},
                     ),
-                    #                 html.Div(
-                    # #                    make_info(dropdown),
-                    #                 style={ 'color': '#000000',
-                    #                                                                          'background-color': '#f5f5f5', 'border': '1px solid #dcdcdc',
-                    #                                                                          'padding': '10px', 'text-align': 'center'})
+                    # Show property info in PROPERTIES_ONLY mode
+                    (
+                        make_property_info(point)
+                        if dataset_state == DatasetState.ALTERNATIVE_MODE
+                        else html.Div(id="empty-div")
+                    )
                 ],
                 style={
                     "font-size": "18px",
                     "display": "inline",
                     "maxWidth": "100px",
                     "maxHeight": "100px",
+                    "padding": "5px",
                 },
             )
 
