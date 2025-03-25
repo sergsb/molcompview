@@ -170,7 +170,7 @@ def range_selector(min=0, max=1, step=0.01, value=None):
 
 
 def analysis_layout():
-    return dbc.Offcanvas(id="analysis-layout", is_open=False, placement="end")
+    return dbc.Offcanvas(id="analysis-layout", is_open=False, placement="end", backdrop=False)
 
 
 def molcompass_layout(selectable_columns):
@@ -185,6 +185,23 @@ def molcompass_layout(selectable_columns):
                 id="main-figure-container",
                 className="g-0",
                 children=[
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                dbc.Button(
+                                    "🔍 Zoom Mode",  # Default text
+                                    id="mode-toggle-button",
+                                    color="primary",
+                                    outline=True,
+                                    size="sm",
+                                    className="mb-3",  # Add margin bottom
+                                ),
+                                width="auto",
+                                className="d-flex justify-content-center",
+                            ),
+                        ],
+                        justify="center",
+                    ),
                     dbc.Row(
                         [
                             range_selector(),

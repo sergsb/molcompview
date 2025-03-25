@@ -14,5 +14,5 @@ class DatasetState(IntEnum):
     """Enum for dataset stages."""
 
     STRUCTURES_ONLY = 0
-    ALTERNATIVE_MODE = 1
-    NORMAL = 2
+    PROPERTY = 1
+    FULL = 2

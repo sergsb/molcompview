@@ -53,26 +53,48 @@ def generate_figure_from_data(data=None, property=None, column_types=None, range
             )
             # Add colorscale viridis
         else:
-            data["color"] = "gray"
-            data["opacity"] = 0.2
-            data["color"] = data[property][data[property].between(range[0], range[1])]
-            data["opacity"] = data["opacity"].where(data["color"].isna(), 1)
+            # Create base scatter plot with all points
             fig = px.scatter(
                 data,
                 x=__x_name__,
                 y=__y_name__,
-                color=data["color"],
-                opacity=data["opacity"],
-                color_continuous_scale="viridis",
+                color=property,
+                color_continuous_scale='viridis'
             )
+            
+            # Update marker opacity based on range
+            mask = data[property].between(range[0], range[1])
+            opacities = [1.0 if m else 0.1 for m in mask]
+            
+            # Apply opacity to markers
+            fig.update_traces(marker=dict(opacity=opacities))
 
     else:
         fig = px.scatter(data, x=__x_name__, y=__y_name__)
-    fig.update_traces(hoverinfo="none", hovertemplate=None)
+    # Configure base trace properties
+    fig.update_traces(
+        hoverinfo="none",
+        hovertemplate=None,
+        selectedpoints=None,  # Disable default selection styling
+        mode='markers',
+        selected=dict(
+            marker=dict(color='red', opacity=0.3)  # Light red for selected points
+        ),
+        unselected=dict(
+            marker=dict(opacity=1)  # Keep unselected points at their current opacity
+        )
+    )
+
+    # Configure selection box and general layout
     fig.update_layout(
         xaxis=dict(title="X - Coordinate"),
         yaxis=dict(title="Y - Coordinate"),
         margin=dict(l=0, r=0, b=0, t=0, pad=0),
+        dragmode='zoom',  # Default to zoom mode
+        selectdirection='any',  # Allow selection in any direction
+        newselection=dict(
+            line=dict(color='red', width=4, dash='solid')  # Make selection box red and thick
+        )
     )
     fig.update_layout(
         legend=dict(orientation="h", yanchor="bottom", y=0.02, xanchor="right", x=0.15)
@@ -95,96 +117,383 @@ def imgFromSmiles(smiles):
 
 def init_callbacks(app, data, column_types, dataset_state):
     @app.callback(
+        Output("mode-toggle-button", "children"),
         Output("molcompass-graph", "figure"),
         Output("molcompass-range-slider-container", "style"),
         Output("molcompass-range-slider", "min"),
         Output("molcompass-range-slider", "max"),
         Output("molcompass-range-slider", "value"),
+        Input("mode-toggle-button", "n_clicks"),
+        Input("molcompass-select-property-dropdown", "value"),
+        Input("molcompass-range-slider", "value"),
+        State("molcompass-graph", "figure"),
         State("molcompass-range-slider-container", "style"),
-        [
-            Input("molcompass-select-property-dropdown", "value"),
-            Input("molcompass-range-slider", "value"),
-        ],
     )
-    def show_dataset(style, property, range):
-        # print("Range is ",range," inside show_dataset")
-        if property is None:
-            style["visibility"] = "hidden"
-            min, max = 0, 0
-            figure = generate_figure_from_data(data)
-        elif column_types[property] == ColumnType.NUMERICAL:
-            style["visibility"] = "visible"
-            min, max = data[property].min(), data[property].max()
-            figure = generate_figure_from_data(data, property, column_types, range)
+    def update_graph(n_clicks, property, range, current_figure, style):
+        ctx = dash.callback_context
+        trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+        if trigger_id == "mode-toggle-button":
+            # Handle mode toggle
+            if n_clicks is None:
+                button_text = "🔍 Zoom Mode"
+                figure = dash.no_update
+            else:
+                current_mode = current_figure.get('layout', {}).get('dragmode', 'zoom')
+                if current_mode == 'zoom':
+                    current_figure['layout']['dragmode'] = 'select'
+                    button_text = "⬚ Select Mode"
+                    figure = current_figure
+                else:
+                    current_figure['layout']['dragmode'] = 'zoom'
+                    button_text = "🔍 Zoom Mode"
+                    figure = current_figure
+            return button_text, figure, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+
         else:
-            style["visibility"] = "hidden"
-            min, max = 0, 0
-            figure = generate_figure_from_data(data, property, column_types)
-        if range is [0, 1]:
-            range = [min, max]
-        return figure, style, min, max, range
+            # Handle property/range updates
+            current_mode = current_figure.get('layout', {}).get('dragmode', 'zoom')
+            button_text = "🔍 Zoom Mode" if current_mode == 'zoom' else "⬚ Select Mode"
+            
+            if property is None:
+                style["visibility"] = "hidden"
+                min, max = 0, 0
+                figure = generate_figure_from_data(data)
+            elif column_types[property] == ColumnType.NUMERICAL:
+                style["visibility"] = "visible"
+                min, max = data[property].min(), data[property].max()
+                figure = generate_figure_from_data(data, property, column_types, range)
+            else:
+                style["visibility"] = "hidden"
+                min, max = 0, 0
+                figure = generate_figure_from_data(data, property, column_types)
+            
+            # Set dragmode to current mode or default to zoom
+            figure['layout']['dragmode'] = current_mode
+            
+            if range is [0, 1]:
+                range = [min, max]
+            return button_text, figure, style, min, max, range
 
     @app.callback(
         Output("analysis-layout", "children"),
         Output("analysis-layout", "is_open"),
         Input("molcompass-graph", "selectedData"),
+        Input("molcompass-select-property-dropdown", "value")
     )
-    def callback(selection):
+    def callback(selection, property_value):
         # Get the selected points
         if selection is None:
             return html.Div(), False
         points = selection["points"]
-        # Get logits AND values for selected points
-        df = data.loc[
-            [p["pointNumber"] for p in points],
-            [__smiles_name__, __class_name__, __probs_name__],
-        ]
-        fpr, tpr, thresholds = roc_curve(df[__class_name__], df[__probs_name__])
-        # Plot ROC curve
-        fig_roc = go.Figure()
-        fig_roc.add_trace(
-            go.Scatter(
-                x=fpr,
-                y=tpr,
-                mode="lines",
-                name="ROC curve",
-                line=dict(color="firebrick", width=4),
+        
+        if dataset_state == DatasetState.FULL:
+            # Get logits AND values for selected points
+            df = data.loc[
+                [p["pointNumber"] for p in points],
+                [__smiles_name__, __class_name__, __probs_name__],
+            ]
+            # Calculate predictions using threshold of 0.5
+            df['pred'] = (df[__probs_name__] > 0.5).astype(int)
+            
+            # Calculate confusion matrix
+            cm = confusion_matrix(df[__class_name__], df['pred'])
+            
+            # Create heatmap of confusion matrix
+            fig = go.Figure(data=go.Heatmap(
+                z=cm,
+                x=['Negative', 'Positive'],
+                y=['Negative', 'Positive'],
+                text=cm,
+                texttemplate="%{text}",
+                textfont={"size": 16},
+                colorscale='Viridis',
+                showscale=False
+            ))
+            fig.update_layout(
+                title='Confusion Matrix',
+                xaxis_title='Predicted',
+                yaxis_title='Actual',
+                template='plotly_white',
+                height=300,
+                margin=dict(l=40, r=20, t=30, b=40)
             )
-        )
-        fig_roc.update_layout(
-            title="ROC curve",
-            xaxis_title="False Positive Rate",
-            yaxis_title="True Positive Rate",
-            template="plotly_white",
-            # width=500,
-            # height=500,
-            margin=dict(l=0, r=0, t=0, b=0),
-        )
-        # ADD AUC to the plot
-        auc = np.trapz(tpr, fpr)
-        fig_roc.add_annotation(
-            x=0.5,
-            y=0.5,
-            text=f"AUC: {round(auc, 3)}",
-            showarrow=False,
-            font=dict(family="Courier New, monospace", size=16, color="#ffffff"),
-            align="left",
-            arrowhead=2,
-            arrowsize=1,
-            arrowwidth=2,
-            arrowcolor="#636363",
-            ax=20,
-            ay=-30,
-            bordercolor="#c7c7c7",
-            borderwidth=2,
-            borderpad=4,
-            bgcolor="#ff7f0e",
-            opacity=0.8,
-        )
-        # fig = create_distplot(df, group_labels=['logits'], bin_size=0.05)
-        x = np.linspace(min(df[__probs_name__]), max(df[__probs_name__]), 500)
-        kde = gaussian_kde(df[__probs_name__])
-        y = kde(x)
+            
+            # Calculate ROC curve
+            fpr, tpr, thresholds = roc_curve(df[__class_name__], df[__probs_name__])
+            
+            # Plot ROC curve
+            fig_roc = go.Figure()
+            fig_roc.add_trace(
+                go.Scatter(
+                    x=fpr,
+                    y=tpr,
+                    mode="lines",
+                    name="ROC curve",
+                    line=dict(color="firebrick", width=4),
+                )
+            )
+            
+            # Add diagonal reference line
+            fig_roc.add_trace(
+                go.Scatter(
+                    x=[0, 1],
+                    y=[0, 1],
+                    mode='lines',
+                    line=dict(color='black', width=2, dash='dash'),
+                    name='Random'
+                )
+            )
+            
+            fig_roc.update_layout(
+                title="ROC curve",
+                xaxis_title="False Positive Rate",
+                yaxis_title="True Positive Rate",
+                template="plotly_white",
+                margin=dict(l=40, r=20, t=30, b=40),
+                height=300
+            )
+            
+            # Calculate metrics
+            sensitivity = cm[1, 1] / (cm[1, 0] + cm[1, 1])
+            specificity = cm[0, 0] / (cm[0, 0] + cm[0, 1])
+            accuracy = (cm[0, 0] + cm[1, 1]) / (cm[0, 0] + cm[0, 1] + cm[1, 0] + cm[1, 1])
+            balanced_accuracy = (sensitivity + specificity) / 2
+            f1 = f1_score(df[__class_name__], df['pred'])
+            mcc = matthews_corrcoef(df[__class_name__], df['pred'])
+            roc_auc = roc_auc_score(df[__class_name__], df[__probs_name__])
+            
+            # Create metrics table
+            table = go.Figure(data=[go.Table(
+                header=dict(
+                    values=['Metric', 'Value'],
+                    fill_color='rgb(55, 83, 109)',
+                    font=dict(color='white'),
+                    align='left'
+                ),
+                cells=dict(
+                    values=[
+                        ['Sensitivity', 'Specificity', 'Accuracy', 'Balanced Accuracy', 'F1 score', 'MCC', 'ROC AUC'],
+                        [f"{sensitivity:.3f}", f"{specificity:.3f}", f"{accuracy:.3f}", 
+                         f"{balanced_accuracy:.3f}", f"{f1:.3f}", f"{mcc:.3f}", f"{roc_auc:.3f}"]
+                    ],
+                    fill_color=['rgb(245, 245, 245)', 'white'],
+                    align='left'
+                )
+            )])
+            table.update_layout(
+                title='Statistical Metrics',
+                template='plotly_white',
+                height=250,
+                margin=dict(l=40, r=20, t=30, b=20)
+            )
+            
+            # Create KDE plots for available numerical columns
+            kde_figs = []
+            plot_configs = []
+            
+            # Only add plots for columns that exist in the dataframe
+            if __probs_name__ in df.columns:
+                plot_configs.append((df[__probs_name__], 'Probability Distribution'))
+            if __loss_name__ in df.columns:
+                plot_configs.append((df[__loss_name__], 'Loss Distribution'))
+                
+            for prop, title in plot_configs:
+                kde_fig = go.Figure()
+                
+                # Calculate KDE
+                kde_points = prop.dropna().values
+                if len(kde_points) > 1:  # Need at least 2 points for KDE
+                    kde = gaussian_kde(kde_points)
+                    x_range = np.linspace(min(kde_points), max(kde_points), 200)
+                    y = kde(x_range)
+
+                    # Add filled KDE
+                    kde_fig.add_trace(go.Scatter(
+                        x=x_range,
+                        y=y,
+                        mode='lines',
+                        line=dict(color='rgb(55, 83, 109)', width=2),
+                        fill='tozeroy',
+                        fillcolor='rgba(55, 83, 109, 0.2)'
+                    ))
+
+                    # Add rug plot
+                    kde_fig.add_trace(go.Scatter(
+                        x=kde_points,
+                        y=[-0.02] * len(kde_points),
+                        mode='markers',
+                        marker=dict(
+                            symbol='line-ns',
+                            line=dict(width=1, color='rgb(55, 83, 109)'),
+                            size=8
+                        ),
+                        hoverinfo='x'
+                    ))
+                else:
+                    # Fallback to scatter plot if not enough points
+                    kde_fig.add_trace(go.Scatter(
+                        x=kde_points,
+                        y=[0] * len(kde_points),
+                        mode='markers',
+                        marker=dict(color='rgb(55, 83, 109)', size=8)
+                    ))
+                
+                # Update layout
+                kde_fig.update_layout(
+                    title=title,
+                    template='plotly_white',
+                    showlegend=False,
+                    margin=dict(l=40, r=20, t=30, b=40),
+                    height=300,
+                    hovermode='x unified',
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    xaxis=dict(
+                        showgrid=True,
+                        gridwidth=1,
+                        gridcolor='rgba(211, 211, 211, 0.5)',
+                        zeroline=False
+                    ),
+                    yaxis=dict(
+                        showgrid=True,
+                        gridwidth=1,
+                        gridcolor='rgba(211, 211, 211, 0.5)',
+                        zeroline=False,
+                        rangemode='nonnegative'
+                    )
+                )
+                kde_figs.append(dcc.Graph(figure=kde_fig))
+            
+            return [
+                dcc.Graph(figure=fig),      # Confusion Matrix
+                dcc.Graph(figure=fig_roc),  # ROC Curve
+                dcc.Graph(figure=table),    # Metrics Table
+                *kde_figs                   # KDE plots for probabilities and loss
+            ], True
+            
+        elif dataset_state == DatasetState.PROPERTY:
+            # If no property is selected, show nothing
+            if not property_value:
+                return html.Div(), False
+
+            # Get all properties for selected points
+            selected_df = data.loc[[p["pointNumber"] for p in points]]
+            
+            # Find numerical properties
+            numerical_props = [col for col, type_ in column_types.items() 
+                             if type_ == ColumnType.NUMERICAL and 
+                             col not in [__x_name__, __y_name__, __probs_name__, __loss_name__]]
+            
+            if not numerical_props:
+                return html.Div("No numerical properties to display"), True
+                
+            # Create distribution plots for numerical properties
+            figs = []
+            for prop in numerical_props:
+                # Create KDE plot
+                fig = go.Figure()
+                
+                # Calculate KDE for full dataset
+                full_kde_points = data[prop].dropna().values
+                if len(full_kde_points) > 1:
+                    full_kde = gaussian_kde(full_kde_points)
+                    x_range = np.linspace(min(full_kde_points), max(full_kde_points), 200)
+                    y_full = full_kde(x_range)
+
+                    # Add filled KDE for full dataset
+                    fig.add_trace(go.Scatter(
+                        x=x_range,
+                        y=y_full,
+                        mode='lines',
+                        name='Full Dataset',
+                        line=dict(color='rgb(169, 169, 169)', width=2),
+                        fill='tozeroy',
+                        fillcolor='rgba(169, 169, 169, 0.1)'
+                    ))
+
+                # Calculate KDE for selected points
+                kde_points = selected_df[prop].dropna().values
+                if len(kde_points) > 1:  # Need at least 2 points for KDE
+                    kde = gaussian_kde(kde_points)
+                    x_range = np.linspace(min(kde_points), max(kde_points), 200)
+                    y = kde(x_range)
+
+                    # Add filled KDE for selected points
+                    fig.add_trace(go.Scatter(
+                        x=x_range,
+                        y=y,
+                        mode='lines',
+                        name='Selected Points',
+                        line=dict(color='rgb(55, 83, 109)', width=2),
+                        fill='tozeroy',
+                        fillcolor='rgba(55, 83, 109, 0.2)'
+                    ))
+
+                    # Add rug plot (small lines at actual data points)
+                    fig.add_trace(go.Scatter(
+                        x=kde_points,
+                        y=[-0.02] * len(kde_points),  # Slightly below x-axis
+                        mode='markers',
+                        marker=dict(
+                            symbol='line-ns',
+                            line=dict(width=1, color='rgb(55, 83, 109)'),
+                            size=8
+                        ),
+                        name='Data points',
+                        hoverinfo='x'
+                    ))
+                else:
+                    # If not enough points for KDE, show scatter plot
+                    fig.add_trace(go.Scatter(
+                        x=kde_points,
+                        y=[0] * len(kde_points),
+                        mode='markers',
+                        marker=dict(color='rgb(55, 83, 109)', size=8),
+                        name='Data points'
+                    ))
+                
+                # Update layout with prettier styling
+                fig.update_layout(
+                    title=f"{prop} Distribution",
+                    xaxis_title=prop,
+                    yaxis_title="Density",
+                    template="plotly_white",
+                    showlegend=True,  # Show legend
+                    legend=dict(
+                        yanchor="top",
+                        y=0.99,
+                        xanchor="right",
+                        x=0.99,
+                        bgcolor='rgba(255, 255, 255, 0.8)',  # Semi-transparent white background
+                        bordercolor='rgba(211, 211, 211, 0.5)',
+                        borderwidth=1
+                    ),
+                    margin=dict(l=40, r=20, t=30, b=40),
+                    height=300,
+                    hovermode='x unified',
+                    plot_bgcolor='white',
+                    paper_bgcolor='white',
+                    xaxis=dict(
+                        showgrid=True,
+                        gridwidth=1,
+                        gridcolor='rgba(211, 211, 211, 0.5)',
+                        zeroline=False
+                    ),
+                    yaxis=dict(
+                        showgrid=True,
+                        gridwidth=1,
+                        gridcolor='rgba(211, 211, 211, 0.5)',
+                        zeroline=False,
+                        rangemode='nonnegative'  # Ensure density is always positive
+                    )
+                )
+                figs.append(dcc.Graph(figure=fig))
+            
+            return html.Div(figs, style={'display': 'flex', 'flexDirection': 'column', 'gap': '20px'}), True
+        
+        # Default case - no visualization
+        return html.Div(), False
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=x, y=y, mode="lines", name="KDE"))
 
@@ -400,22 +709,22 @@ def init_callbacks(app, data, column_types, dataset_state):
                     # Only show class and probability info in FULL mode
                     (
                         act_or_inact(point[__class_name__])
-                        if dataset_state == DatasetState.NORMAL
+                        if dataset_state == DatasetState.FULL
                         else html.Div(id="empty-div")
                     ),
                     (
                         probs_and_loss(point[__probs_name__], point[__loss_name__])
-                        if dataset_state == DatasetState.NORMAL
+                        if dataset_state == DatasetState.FULL
                         else html.Div(id="empty-div")
                     ),
                     html.Img(
                         src=imgFromSmiles(point[__smiles_name__]),
                         style={"width": "20wh", "height": "20vh"},
                     ),
-                    # Show property info in PROPERTIES_ONLY mode
+                    # Show property info in PROPERTY mode
                     (
                         make_property_info(point)
-                        if dataset_state == DatasetState.ALTERNATIVE_MODE
+                        if dataset_state == DatasetState.PROPERTY
                         else html.Div(id="empty-div")
                     )
                 ],

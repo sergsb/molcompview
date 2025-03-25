@@ -204,7 +204,7 @@ def process_new_file(filename):
             
             if has_ground_truth and has_probabilities:
                 # Both Ground Truth and Probabilities -> FULL mode
-                dataset_state = DatasetState.NORMAL
+                dataset_state = DatasetState.FULL
                 data[__loss_name__] = -(
                     data[__class_name__] * np.log(data[__probs_name__])
                     + (1 - data[__class_name__]) * np.log(1 - data[__probs_name__])
@@ -212,7 +212,7 @@ def process_new_file(filename):
                 column_types['numerical'].append(__loss_name__)
             else:
                 # Missing either Ground Truth or Probabilities -> PROPERTIES_ONLY
-                dataset_state = DatasetState.ALTERNATIVE_MODE
+                dataset_state = DatasetState.PROPERTY
 
     # Report Mode in Main log
     mode_txt = {0: "STRUCTURES_ONLY", 1: "ALTERNATIVE_MODE", 2: "NORMAL"}
