@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings('ignore', message='.*DEPRECATION WARNING: please use MorganGenerator.*')
+
 import argparse
 import hashlib
 import json
@@ -254,7 +257,10 @@ def main_logic(file, precompute=False, log_level="ERROR"):
         fluid=True,
     )
     init_callbacks(app, data, column_types, dataset_state)
-    app.run_server(debug=True)
+    try:
+        app.run(debug=True)  # New method
+    except Exception:
+        app.run_server(debug=True)  # Fallback for older Dash versions
 
 
 #
