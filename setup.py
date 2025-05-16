@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     python_requires=">=3.6",  # Your supported Python ranges
     name="molcompview",
-    version="0.1.6",
+    version="0.1.7",
     include_package_data=True,
     package_data={
         "molcompview": ["data/endocrine-receptor/*"],
